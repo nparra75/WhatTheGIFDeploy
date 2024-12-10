@@ -1,1 +1,2 @@
 # WhatTheGIFDeploy
+This project is an interactive web application built using Streamlit that generates audio of a GIF file based on user-provided input. The app uses state-of-the-art machine learning models, specifically BLIP (Bootstrapped Language-Image Pretraining) for image captioning and T5 (Text-to-Text Transfer Transformer) for summarization, to create meaningful insights from the GIF's visual data. Additionally, the app provides audio playback of the generated description using the gTTS (Google Text-to-Speech) library.
