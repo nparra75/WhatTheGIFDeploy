@@ -19,8 +19,11 @@ st.set_page_config(page_title="WhatTheGIF?", page_icon="🎤", layout="wide")
 def setup_google_credentials():
     google_credentials = st.secrets["google_credentials"]
 
+    # Convert the AttrDict to a regular dictionary
+    google_credentials_dict = dict(google_credentials)  # or google_credentials.to_dict() if the method exists
+
     # Convert the dictionary to a JSON string
-    google_credentials_json = json.dumps(google_credentials)
+    google_credentials_json = json.dumps(google_credentials_dict)
 
     # Write credentials to a temporary JSON file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
