@@ -9,6 +9,8 @@ import validators
 from googletrans import Translator  # Import the translator
 import base64
 import tempfile
+import json
+
 
 # Set up the Streamlit page configuration
 st.set_page_config(page_title="WhatTheGIF?", page_icon="🎤", layout="wide")
