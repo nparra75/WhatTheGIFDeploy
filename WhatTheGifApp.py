@@ -10,19 +10,33 @@ from googletrans import Translator  # Import the translator
 import base64
 import tempfile
 
-google_credentials = st.secrets["google_credentials"]
+# Set up the Streamlit page configuration
+st.set_page_config(page_title="WhatTheGIF?", page_icon="🎤", layout="wide")
 
-# Write the credentials to a temporary file
-with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-     temp_file.write(google_credentials.encode())
-     temp_file_path = temp_file.name
+# Load Google credentials securely from Streamlit secrets
+def setup_google_credentials():
+    google_credentials = st.secrets["google_credentials"]
 
-# Set up authentication to the service account key file
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_file_path
-#os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'winter-wonder-442806-e3-93ea92747f60.json'
+    # Convert the dictionary to a JSON string
+    google_credentials_json = json.dumps(google_credentials)
 
-# Delete the Temporary File
-os.remove(temp_file_path)
+    # Write credentials to a temporary JSON file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
+        temp_file.write(google_credentials_json.encode())  # Convert to bytes
+        temp_file_path = temp_file.name
+
+    # Set the GOOGLE_APPLICATION_CREDENTIALS environment variable
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
+
+    return temp_file_path
+
+# Clean up temporary credentials file
+def cleanup_temp_file(file_path):
+    try:
+        os.remove(file_path)
+    except Exception as e:
+        st.error(f"Error deleting temporary file: {e}")
+
 
 # Cloud Run endpoint URL
 API_URL = "https://gif-captioning-app-281207086739.us-central1.run.app/generate_caption"
@@ -93,8 +107,7 @@ def image_to_base64(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode()
 
-# Set up the Streamlit page configuration
-st.set_page_config(page_title="WhatTheGIF?", page_icon="🎤", layout="wide")
+
 
 # Load the image to get its size
 image_path = "WTG.png"
@@ -170,32 +183,36 @@ with st.sidebar:
 st.subheader("GIF Captioning and Audio Generation")
 
 if st.button("Generate Captions and Audio"):
-    with st.spinner("Processing... Please wait."):
-        # Process uploaded files
-        for idx, gif_file in enumerate(gif_files):
-            st.write(f"Uploaded GIF {idx + 1}...")
-            gif_data = gif_file.read()
-            caption = generate_caption(None, gif_file, "Upload GIFs")
-            if caption:
-                translated_caption = translate_to_french(caption)
-                audio_bytes = text_to_speech(caption)  # Original caption audio
-                translated_audio_bytes = text_to_speech(translated_caption, language_code='fr-FR')  # French audio
-                display_results(gif_data, caption, audio_bytes, translated_caption, translated_audio_bytes)
+    temp_file_path = setup_google_credentials()
+    try:
+        with st.spinner("Processing... Please wait."):
+            # Process uploaded files
+            for idx, gif_file in enumerate(gif_files):
+                st.write(f"Uploaded GIF {idx + 1}...")
+                gif_data = gif_file.read()
+                caption = generate_caption(None, gif_file, "Upload GIFs")
+                if caption:
+                    translated_caption = translate_to_french(caption)
+                    audio_bytes = text_to_speech(caption)  # Original caption audio
+                    translated_audio_bytes = text_to_speech(translated_caption, language_code='fr-FR')  # French audio
+                    display_results(gif_data, caption, audio_bytes, translated_caption, translated_audio_bytes)
 
-        # Process valid URLs
-        for idx, url in enumerate(valid_urls):
-            st.write(f"Uploaded GIF URL {idx + 1}...")
-            try:
-                response = requests.get(url)
-                if response.status_code == 200:
-                    gif_data = response.content
-                    caption = generate_caption(url, None, "Enter GIF URLs")
-                    if caption:
-                        translated_caption = translate_to_french(caption)  # Translate the caption
-                        audio_bytes = text_to_speech(caption)  # Original caption audio
-                        translated_audio_bytes = text_to_speech(translated_caption, language_code='fr-FR')  # French audio
-                        display_results(gif_data, caption, audio_bytes, translated_caption, translated_audio_bytes)
-                else:
-                    st.error(f"Failed to fetch GIF from URL: {url}. HTTP Status: {response.status_code}")
-            except Exception as e:
-                st.error(f"Error fetching GIF from URL: {url}. Error: {e}")
+            # Process valid URLs
+            for idx, url in enumerate(valid_urls):
+                st.write(f"Uploaded GIF URL {idx + 1}...")
+                try:
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        gif_data = response.content
+                        caption = generate_caption(url, None, "Enter GIF URLs")
+                        if caption:
+                            translated_caption = translate_to_french(caption)  # Translate the caption
+                            audio_bytes = text_to_speech(caption)  # Original caption audio
+                            translated_audio_bytes = text_to_speech(translated_caption, language_code='fr-FR')  # French audio
+                            display_results(gif_data, caption, audio_bytes, translated_caption, translated_audio_bytes)
+                    else:
+                        st.error(f"Failed to fetch GIF from URL: {url}. HTTP Status: {response.status_code}")
+                except Exception as e:
+                    st.error(f"Error fetching GIF from URL: {url}. Error: {e}")
+    finally:
+        cleanup_temp_file(temp_file_path)
